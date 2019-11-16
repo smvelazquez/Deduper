@@ -1,0 +1,93 @@
+## The problem
+Write up a strategy for writing a Reference Based PCR Duplicate Removal tool.
+That is, given a sam file of uniquely mapped reads, remove all PCR duplicates
+(retain only a single copy of each read). Develop a strategy that avoids loading
+everything into memory. You should not write any code for this portion of the
+assignment. Be sure to:
+
+Define the problem
+Write examples:
+Include a properly formatted input sam file
+Include a properly formatted expected output sam file
+Develop your algorithm using pseudocode
+Determine high level functions
+Description
+Function headers
+Test examples (for individual functions)
+Return statement
+For this portion of the assignment, you should design your algorithm for
+single-end data, with 96 UMIs. UMI information will be in the QNAME,
+like so: NS500451:154:HWKTMBGXX:1:11101:15364:1139:GAACAGGT.
+Discard any UMIs with errors (or error correct, if you're feeling ambitious).
+
+
+## Solution
+
+sort your file using samtools
+
+Things we need to check:
+  1. Same alignment position
+      a. same chromosome (SAM col 3)
+      b. same position (SAM col 4)
+      c. same strand (SAM col 2)
+  2. Soft clipping (CIGAR string, SAM col 6)
+  3. SAME UMI (SAM col 1)
+  ** Overall, just need to focus on making sure that you have the same alignment
+  position and the same UMI; you just need to account for soft clipping
+  ** Only need to do this for single end,
+
+GLOBAL DICTIONARYIES/TUPLES:
+1. Forward {chro+pos: UMI} dictionary
+2. Reverse (chro+pos: UMI} dictionary
+3. Known_UMI_tuple: will contain all of the known tuples
+
+
+1. Create a function that extracts the position and chromosome from each read and stores them as one
+2. Create a function that extracts the UMI using a regular expression
+3. Create a forward function that checks if the bitwise flag states the read is in the forward direction
+4. Create a reverse function that checks if the bitwise flag states the read is in the reverse directionn
+5. Create a function that adjusts for soft clipping
+    - If the initial read is forward and has soft clipping through the use of the cigar string, use the number
+      before the s to subtract the position number from the starting position for the new starting position.
+      Use a regex to find an S an pull out the number that preceeds it to subtract it from the position
+    - If the read is the reverse complement then add the number of nucleotides
+6. Read in all your files dynamically
+7. Use a for loop with a regular expression that only searches the for the reads:
+8. Use your forward function to search for forward reads
+9. Use your reverse function the search for reverse reads.
+10. if your read is forward:
+    - use your chro+pos function to store the chromosome and position of every read as a key
+    - use your UMI function to store the UMI as a key for each read
+    - if no UMI's match every time it goes through a record, keep those records:
+      if umi's match then do the following:
+        - check to see if the UMI is in the same chro+pos key
+
+    For example: your dictionary should look like this: [note - chrom and pos will not actually be strings in your keys]
+
+    {chrom(11) + pos(#) : UMI1, UMI2, etc.}
+
+      - in this case, keep the read
+
+    If you have a PCR duplicate, you will have the same UMI appear for the same key multiple times, ex.:
+
+    {chrom(11) + pos(#) : UMI1, UMI1, etc.}
+
+      - in this case, throw out that read with the duplicate UMI
+
+
+    - use your soft clipping function to check/adjust for soft clipping in your cigar string:
+11. If your read is reverse:
+    - use your chro+pos function to store the chromosome and position of every read as a key
+    - use your UMI function to store the UMI as a key for each read
+    - if no UMI's match every time it goes through a record, keep those records:
+      if umi's match then do the following:
+    - check to see if the UMI is in the same chro+pos key
+    - check to see if deletions, missing nucleotide and soft clipping are present
+        - add them to the starting position at the at the 5’.
+12. cross check that all of the values in both your forward and reverse dictionaries are different:
+    i.e. check that the chro + pos for every UMI is different in both the forward and reverse dictionaries
+          - if you have an UMI that mapped to the same chro + pos in both forward and reverse then it's still a duplicate,
+          throw it away
+13. Check that all of your UMI values exist in your UMI tuple:
+      - if they do, great, keep the reads
+      - if they don't, throw away those reads. 
